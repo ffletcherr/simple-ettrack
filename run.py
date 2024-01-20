@@ -35,14 +35,29 @@ labels = [jeval(line) for line in labels]
 assert len(labels) == frames_count
 
 fn = 0
+fn_offset = os.environ("fn_offset", 0)
+is_initialized = False
+state_dict = {}
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
+    if fn < fn_offset:
+        fn += 1
+        continue
     bboxes = labels[fn]
-    for bbox in bboxes:
-        c, x, y, w, h = map(int, bbox[:5])
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (220, 255, 12))
+    if bboxes:
+        for bbox in bboxes:
+            c, x, y, w, h = map(int, bbox[:5])
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (220, 255, 12))
+        if not is_initialized or fn % 10 == 0:
+            state_dict = tracker.initialize(frame, {"init_bbox": [x, y, w, h]})
+            is_initialized = True
+    if is_initialized:
+        state_dict = tracker.track(frame, {"previous_output": state_dict})
+    if state_dict:
+        tx, ty, tw, th = map(int, state_dict["target_bbox"])
+        cv2.rectangle(frame, (tx, ty), (tx + tw, ty + th), (22, 255, 255))
     cv2.imshow("f", frame)
     k = cv2.waitKey()
     if k == ord("q"):
