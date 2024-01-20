@@ -35,7 +35,7 @@ labels = [jeval(line) for line in labels]
 assert len(labels) == frames_count
 
 fn = 0
-fn_offset = os.environ("fn_offset", 0)
+fn_offset = int(os.environ.get("fn_offset", 0))
 is_initialized = False
 state_dict = {}
 while cap.isOpened():
