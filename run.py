@@ -1,13 +1,19 @@
 from pathlib import Path
-
+import os
 import cv2
+from dotenv import load_dotenv
 
 from et_tracker import TransconverTracker
 from parameters import parameters
 
+load_dotenv()
+
 tracker = TransconverTracker(parameters())
 tracker.initialize_features()
 
+dataset_path = Path(os.environ["dataset_path"])
+folder_path = dataset_path / os.environ["folder_path"]
+video_name = os.environ["video_name"]
 
 video_path = (folder_path / video_name).with_suffix(".mp4")
 label_path = (folder_path / video_name).with_suffix(".txt")
