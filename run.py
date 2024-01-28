@@ -32,7 +32,7 @@ def jeval(line):
 
 
 labels = [jeval(line) for line in labels]
-assert len(labels) == frames_count
+assert len(labels) == frames_count, f"labels: {len(labels)}, frames: {frames_count}"
 
 fn = 0
 fn_offset = int(os.environ.get("fn_offset", 0))
