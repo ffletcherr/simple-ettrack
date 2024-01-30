@@ -3,6 +3,7 @@ import logging
 import os
 import random
 from os.path import join
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -16,11 +17,55 @@ from lib.core.config_ocean import config
 from lib.utils.cutout import Cutout
 from lib.utils.utils import BBox, Center, Corner, aug_apply, center2corner
 
-sample_random = random.Random()
+
+def crop_hwc(image, bbox, out_sz, padding=(0, 0, 0)):
+    a = (out_sz - 1) / (bbox[2] - bbox[0])
+    b = (out_sz - 1) / (bbox[3] - bbox[1])
+    c = -a * bbox[0]
+    d = -b * bbox[1]
+    mapping = np.array([[a, 0, c], [0, b, d]]).astype(np.float64)
+    crop = cv2.warpAffine(
+        image,
+        mapping,
+        (out_sz, out_sz),
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=padding,
+    )
+    return crop
+
+
+def pos_s_2_bbox(pos, s):
+    return [pos[0] - s / 2, pos[1] - s / 2, pos[0] + s / 2, pos[1] + s / 2]
+
+
+def crop_like_SiamFC(
+    image,
+    bbox,
+    context_amount=0.5,
+    exemplar_size=127,
+    instanc_size=255,
+    padding=(0, 0, 0),
+):
+    """
+    bbox: [xmin, ymin, xmax, ymax]
+    """
+    target_pos = [(bbox[2] + bbox[0]) / 2.0, (bbox[3] + bbox[1]) / 2.0]
+    target_size = [bbox[2] - bbox[0], bbox[3] - bbox[1]]
+    wc_z = target_size[1] + context_amount * sum(target_size)
+    hc_z = target_size[0] + context_amount * sum(target_size)
+    s_z = np.sqrt(wc_z * hc_z)
+    scale_z = exemplar_size / s_z
+    d_search = (instanc_size - exemplar_size) / 2
+    pad = d_search / scale_z
+    s_x = s_z + 2 * pad
+
+    z = crop_hwc(image, pos_s_2_bbox(target_pos, s_z), exemplar_size, padding)
+    x = crop_hwc(image, pos_s_2_bbox(target_pos, s_x), instanc_size, padding)
+    return z, x
 
 
 class OceanDataset(Dataset):
-    def __init__(self, cfg):
+    def __init__(self, cfg, dataset_path: str = None):
         super(OceanDataset, self).__init__()
         # pair information
         self.template_size = cfg.OCEAN.TRAIN.TEMPLATE_SIZE
@@ -82,35 +127,24 @@ class OceanDataset(Dataset):
             + ([Cutout(n_holes=1, length=16)] if self.cutout > random.random() else [])
         )
 
-        # train data information
-        print("train datas: {}".format(cfg.OCEAN.TRAIN.WHICH_USE))
-        self.train_datas = []  # all train dataset
-        start = 0
-        self.num = 0
-        for data_name in cfg.OCEAN.TRAIN.WHICH_USE:
-            dataset = subData(cfg, data_name, start)
-            self.train_datas.append(dataset)
-            start += dataset.num  # real video number
-            self.num += dataset.num_use  # the number used for subset shuffle
-
-        self._shuffle()
+        self.dataset_path = Path(dataset_path)
+        self.tracks_path = sorted(
+            [folder_path for folder_path in self.dataset_path.glob("*")]
+        )
+        self.get_track_infos()
         print(cfg)
 
     def __len__(self):
-        return self.num
+        return self.tracks
 
     def __getitem__(self, index):
         """
         pick a vodeo/frame --> pairs --> data aug --> label
         """
-        index = self.pick[index]
-        dataset, index = self._choose_dataset(index)
+        template, search = self._get_pairs(index)
 
-        template, search = dataset._get_pairs(index, dataset.data_name)
-        template, search = self.check_exists(index, dataset, template, search)
-
-        template_image = cv2.imread(template[0])
-        search_image = cv2.imread(search[0])
+        template_image = cv2.imread(template[0].as_posix())
+        search_image = cv2.imread(search[0].as_posix())
 
         template_box = self._toBBox(template_image, template[1])
         search_box = self._toBBox(search_image, search[1])
@@ -184,90 +218,33 @@ class OceanDataset(Dataset):
 
         return reg_label, inds_nonzero
 
-    def check_exists(self, index, dataset, template, search):
-        name = dataset.data_name
-        while True:
-            if (
-                "RGBT" in name
-                or "GTOT" in name
-                and "RGBTRGB" not in name
-                and "RGBTT" not in name
-            ):
-                if not (
-                    os.path.exists(template[0][0]) and os.path.exists(search[0][0])
-                ):
-                    index = random.randint(0, 100)
-                    template, search = dataset._get_pairs(index, name)
-                    continue
-                else:
-                    return template, search
-            else:
-                if not (os.path.exists(template[0]) and os.path.exists(search[0])):
-                    index = random.randint(0, 100)
-                    template, search = dataset._get_pairs(index, name)
-                    continue
-                else:
-                    return template, search
+    def get_track_infos(self):
+        self.tracks_info = {}
+        for track_idx, track_folder in enumerate(self.tracks_path):
+            txt_path_list = sorted(list(track_folder.glob("*.txt")))
+            frames_path_dict = {
+                idx: {"frame": txt_path.with_suffix(".jpg"), "label": txt_path}
+                for idx, txt_path in enumerate(txt_path_list)
+            }
+            self.tracks_info[track_idx] = frames_path_dict
 
-    def _shuffle(self):
-        """
-        random shuffel
-        """
-        pick = []
-        m = 0
-        while m < self.num:
-            p = []
-            for subset in self.train_datas:
-                sub_p = subset.pick
-                p += sub_p
-            sample_random.shuffle(p)
-
-            pick += p
-            m = len(pick)
-        self.pick = pick
-        print("dataset length {}".format(self.num))
-
-    def _choose_dataset(self, index):
-        for dataset in self.train_datas:
-            if dataset.start + dataset.num > index:
-                return dataset, index - dataset.start
-
-    def _get_image_anno(self, video, track, frame, RGBT_FLAG=False):
+    def _get_image_anno(
+        self, track_dict: dict[int, dict[str, Path]], frame_idx: int
+    ) -> tuple[Path, list[float]]:
         """
         get image and annotation
         """
-
-        frame = "{:06d}".format(frame)
-        if not RGBT_FLAG:
-            image_path = join(self.root, video, "{}.{}.x.jpg".format(frame, track))
-            image_anno = self.labels[video][track][frame]
-            return image_path, image_anno
-        else:  # rgb
-            in_image_path = join(
-                self.root, video, "{}.{}.in.x.jpg".format(frame, track)
-            )
-            rgb_image_path = join(
-                self.root, video, "{}.{}.rgb.x.jpg".format(frame, track)
-            )
-            image_anno = self.labels[video][track][frame]
-            in_anno = np.array(image_anno[-1][0])
-            rgb_anno = np.array(image_anno[-1][1])
-
-            return [in_image_path, rgb_image_path], (in_anno + rgb_anno) / 2
+        frame_path = track_dict[frame_idx]["frame"]
+        label_path = track_dict[frame_idx]["label"]
+        image_anno = [eval(line) for line in label_path.read_text().split("\n")]
+        return frame_path, image_anno
 
     def _get_pairs(self, index):
         """
         get training pairs
         """
-        video_name = self.videos[index]
-        video = self.labels[video_name]
-        track = random.choice(list(video.keys()))
-        track_info = video[track]
-        try:
-            frames = track_info["frames"]
-        except:
-            frames = list(track_info.keys())
-
+        track_dict = self.tracks_info[index]
+        frames = list(range(len(track_dict)))
         template_frame = random.randint(0, len(frames) - 1)
 
         left = max(template_frame - self.frame_range, 0)
@@ -276,9 +253,9 @@ class OceanDataset(Dataset):
         template_frame = int(frames[template_frame])
         search_frame = int(random.choice(search_range))
 
-        return self._get_image_anno(
-            video_name, track, template_frame
-        ), self._get_image_anno(video_name, track, search_frame)
+        return self._get_image_anno(track_dict, template_frame), self._get_image_anno(
+            track_dict, search_frame
+        )
 
     def _posNegRandom(self):
         """
