@@ -66,6 +66,7 @@ class OceanDataset(Dataset):
         # pair information
         self.template_size = cfg.OCEAN.TRAIN.TEMPLATE_SIZE
         self.search_size = cfg.OCEAN.TRAIN.SEARCH_SIZE
+        self.search_margin = 64
 
         self.size = 25
         self.frame_range = 60
@@ -146,8 +147,18 @@ class OceanDataset(Dataset):
         # change bboxes format and pick the first one
         template_target_bbox = self.yolo2ocean(template[1], template_image)
         search_target_bbox = self.yolo2ocean(search[1], search_image)
-        _, template_image = crop_like_SiamFC(template_image, bbox=template_target_bbox)
-        _, search_image = crop_like_SiamFC(search_image, bbox=search_target_bbox)
+        _, template_image = crop_like_SiamFC(
+            template_image,
+            bbox=template_target_bbox,
+            exemplar_size=self.template_size,
+            instanc_size=self.search_size,
+        )
+        _, search_image = crop_like_SiamFC(
+            search_image,
+            bbox=search_target_bbox,
+            exemplar_size=self.template_size,
+            instanc_size=self.search_size + self.search_margin,
+        )
         template_box = self._toBBox(template_image, template_target_bbox)
         search_box = self._toBBox(search_image, search_target_bbox)
 
@@ -281,6 +292,11 @@ class OceanDataset(Dataset):
         return ocean_bbox
 
     def _toBBox(self, image, shape):
+        """
+        create a boundig box for cropped image (search image)
+        from bounding box that is in main image coordinates system
+        shape: [x1, x2, y1, y2]
+        """
         imh, imw = image.shape[:2]
         if len(shape) == 4:
             w, h = shape[2] - shape[0], shape[3] - shape[1]
