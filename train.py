@@ -40,7 +40,7 @@ def crop_like_SiamFC(
     context_amount=0.5,
     exemplar_size=127,
     instanc_size=255,
-    padding=(0, 0, 0),
+    padding=(127, 127, 127),
 ):
     """
     bbox: [xmin, ymin, xmax, ymax]
