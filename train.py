@@ -1,13 +1,9 @@
-import json
-import logging
-import os
 import random
 from os.path import join
 from pathlib import Path
 
 import cv2
 import numpy as np
-import torch
 import torchvision.transforms as transforms
 from easydict import EasyDict as edict
 from scipy.ndimage.filters import gaussian_filter
@@ -72,6 +68,7 @@ class OceanDataset(Dataset):
         self.search_size = cfg.OCEAN.TRAIN.SEARCH_SIZE
 
         self.size = 25
+        self.frame_range = 60
         self.stride = cfg.OCEAN.TRAIN.STRIDE
 
         # aug information
@@ -135,7 +132,7 @@ class OceanDataset(Dataset):
         print(cfg)
 
     def __len__(self):
-        return self.tracks
+        return len(self.tracks_info)
 
     def __getitem__(self, index):
         """
@@ -146,8 +143,13 @@ class OceanDataset(Dataset):
         template_image = cv2.imread(template[0].as_posix())
         search_image = cv2.imread(search[0].as_posix())
 
-        template_box = self._toBBox(template_image, template[1])
-        search_box = self._toBBox(search_image, search[1])
+        # change bboxes format and pick the first one
+        template_target_bbox = self.yolo2ocean(template[1], template_image)
+        search_target_bbox = self.yolo2ocean(search[1], search_image)
+        _, template_image = crop_like_SiamFC(template_image, bbox=template_target_bbox)
+        _, search_image = crop_like_SiamFC(search_image, bbox=search_target_bbox)
+        template_box = self._toBBox(template_image, template_target_bbox)
+        search_box = self._toBBox(search_image, search_target_bbox)
 
         template, _, _ = self._augmentation(
             template_image, template_box, self.template_size
@@ -164,9 +166,9 @@ class OceanDataset(Dataset):
 
         reg_label, reg_weight = self.reg_label(bbox)
 
-        template, search = map(
-            lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search]
-        )
+        # template, search = map(
+        #     lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search]
+        # )
 
         return (
             template,
@@ -237,6 +239,8 @@ class OceanDataset(Dataset):
         frame_path = track_dict[frame_idx]["frame"]
         label_path = track_dict[frame_idx]["label"]
         image_anno = [eval(line) for line in label_path.read_text().split("\n")]
+        assert len(image_anno) > 0, "image_anno is empty"
+        image_anno = image_anno[0]
         return frame_path, image_anno
 
     def _get_pairs(self, index):
@@ -262,6 +266,19 @@ class OceanDataset(Dataset):
         random number from [-1, 1]
         """
         return random.random() * 2 - 1.0
+
+    def yolo2ocean(self, bbox, image):
+        """
+        normalized yolo format bounding box: [class, x, y, w, h]
+        """
+        imh, imw = image.shape[:2]
+        bc, bx, by, bw, bh = bbox
+        x = bx * imw
+        y = by * imh
+        w = bw * imw
+        h = bh * imh
+        ocean_bbox = list(map(int, [x, y, x + w, y + h]))
+        return ocean_bbox
 
     def _toBBox(self, image, shape):
         imh, imw = image.shape[:2]
@@ -364,6 +381,12 @@ class OceanDataset(Dataset):
         data augmentation for input pairs (modified from SiamRPN.)
         """
         shape = image.shape
+        # if search:
+        #     crop_bbox = center2corner(
+        #         (shape[0] // 2, shape[1] // 2, size - 64, size - 64)
+        #     )
+        # else:
+        #     crop_bbox = center2corner((shape[0] // 2, shape[1] // 2, size, size))
         crop_bbox = center2corner((shape[0] // 2, shape[1] // 2, size, size))
         param = edict()
 
@@ -455,3 +478,16 @@ class OceanDataset(Dataset):
             np.where(dist_to_center < rNeg, 0.5 * np.ones_like(y), np.zeros_like(y)),
         )
         return label
+
+
+if __name__ == "__main__":
+    dataset = OceanDataset(
+        cfg=config,
+        dataset_path="/home/hm/hdd/AI/next_target/drone-phase-3/datasets/dataset.v.2/tracks",
+    )
+
+    template, search, out_label, reg_label, reg_weight, bbox = dataset[222]
+    cv2.imshow("template", template)
+    cv2.imshow("search", search)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
