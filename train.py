@@ -490,9 +490,12 @@ class OceanDataset(Dataset):
 
 
 if __name__ == "__main__":
+    import os
+
+    dataset_path = Path(os.environ["dataset_path"])
     dataset = OceanDataset(
         cfg=config,
-        dataset_path="/home/hm/hdd/AI/next_target/drone-phase-3/datasets/dataset.v.2/tracks",
+        dataset_path=dataset_path / "tracks",
     )
 
     template, search, out_label, reg_label, reg_weight, bbox = dataset[22]
