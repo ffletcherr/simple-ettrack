@@ -397,12 +397,6 @@ class OceanDataset(Dataset):
         data augmentation for input pairs (modified from SiamRPN.)
         """
         shape = image.shape
-        # if search:
-        #     crop_bbox = center2corner(
-        #         (shape[0] // 2, shape[1] // 2, size - 64, size - 64)
-        #     )
-        # else:
-        #     crop_bbox = center2corner((shape[0] // 2, shape[1] // 2, size, size))
         crop_bbox = center2corner((shape[0] // 2, shape[1] // 2, size, size))
         param = edict()
 
@@ -440,7 +434,7 @@ class OceanDataset(Dataset):
             image = gaussian_filter(image, sigma=(1, 1, 0))
 
         image = self.transform_extra(image)  # other data augmentation
-        return image, bbox, param
+        return image, bbox, real_param
 
     def _mixupShift(self, image, size):
         """
@@ -478,8 +472,8 @@ class OceanDataset(Dataset):
         else:
             sz = label_size[0]
 
-        sz_x = sz // 2 + int(-c_shift[0] / 8)  # 8 is strides
-        sz_y = sz // 2 + int(-c_shift[1] / 8)
+        sz_x = sz // 2 + int(-c_shift[0] / self.stride)  # 8 is strides
+        sz_y = sz // 2 + int(-c_shift[1] / self.stride)
 
         x, y = np.meshgrid(
             np.arange(0, sz) - np.floor(float(sz_x)),
