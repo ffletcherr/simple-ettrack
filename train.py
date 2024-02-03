@@ -260,13 +260,13 @@ class OceanDataset(Dataset):
         """
         track_dict = self.tracks_info[index]
         frames = list(range(len(track_dict)))
-        template_frame = random.randint(0, len(frames) - 1)
+        template_frame = random.randint(0, len(frames) - 1)  # 2
 
         left = max(template_frame - self.frame_range, 0)
         right = min(template_frame + self.frame_range, len(frames) - 1) + 1
         search_range = frames[left:right]
         template_frame = int(frames[template_frame])
-        search_frame = int(random.choice(search_range))
+        search_frame = int(random.choice(search_range))  # search_range[2]
 
         return self._get_image_anno(track_dict, template_frame), self._get_image_anno(
             track_dict, search_frame
@@ -424,9 +424,8 @@ class OceanDataset(Dataset):
                 (1.0 + self._posNegRandom() * self.scale),
                 (1.0 + self._posNegRandom() * self.scale),
             )  # scale change
-
-        crop_bbox, _ = aug_apply(Corner(*crop_bbox), param, shape)
-
+        crop_bbox, real_param = aug_apply(Corner(*crop_bbox), param, shape)
+        real_param = edict(real_param)
         x1, y1 = crop_bbox.x1, crop_bbox.y1
         bbox = BBox(bbox.x1 - x1, bbox.y1 - y1, bbox.x2 - x1, bbox.y2 - y1)
 
@@ -502,8 +501,10 @@ if __name__ == "__main__":
         dataset_path="/home/hm/hdd/AI/next_target/drone-phase-3/datasets/dataset.v.2/tracks",
     )
 
-    template, search, out_label, reg_label, reg_weight, bbox = dataset[222]
+    template, search, out_label, reg_label, reg_weight, bbox = dataset[22]
+    out_label = (cv2.resize(out_label, search.shape[:2]) * 255).astype(np.uint8)
     cv2.imshow("template", template)
     cv2.imshow("search", search)
+    cv2.imshow("out_label", out_label)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
