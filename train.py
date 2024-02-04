@@ -1,24 +1,38 @@
+import os
 from pathlib import Path
 
 import cv2
 import numpy as np
+from torch.utils.data import DataLoader
 
 from data_utils import OceanDataset
 from lib.core.config_ocean import config
+from lib.core.function import ocean_train
 
 if __name__ == "__main__":
-    import os
 
+    gpu_num = 1
     dataset_path = Path(os.environ["dataset_path"])
     dataset = OceanDataset(
         cfg=config,
         dataset_path=dataset_path / "tracks",
     )
+    data_loader = DataLoader(
+        dataset,
+        batch_size=config.OCEAN.TRAIN.BATCH * gpu_num,
+        num_workers=config.WORKERS,
+        pin_memory=True,
+        sampler=None,
+        drop_last=True,
+    )
 
-    template, search, out_label, reg_label, reg_weight, bbox = dataset[22]
-    out_label = (cv2.resize(out_label, search.shape[:2]) * 255).astype(np.uint8)
-    cv2.imshow("template", template)
-    cv2.imshow("search", search)
-    cv2.imshow("out_label", out_label)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    batch = next(iter(data_loader))
+
+    (
+        template,
+        search,
+        out_label,
+        reg_label,
+        reg_weight,
+        bbox,
+    ) = batch
