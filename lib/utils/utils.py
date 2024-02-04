@@ -1200,7 +1200,7 @@ LRs = {
 
 
 def _build_lr_scheduler(optimizer, config, epochs=50, last_epoch=-1):
-    return LRs[config.TYPE](optimizer, last_epoch=last_epoch,
+    return LRs[config.LR_POLICY](optimizer, last_epoch=last_epoch,
                             epochs=epochs, **config.KWARGS)
 
 
@@ -1216,10 +1216,11 @@ def _build_warm_up_scheduler(optimizer, cfg, epochs=50, last_epoch=-1, modelFLAG
 
 def build_lr_scheduler(optimizer, cfg, epochs=50, last_epoch=-1, modelFLAG='ET'):
     cfg = cfg[modelFLAG]
-    if cfg.TRAIN.WARMUP.IFNOT:
-        return _build_warm_up_scheduler(optimizer, cfg, epochs, last_epoch)
-    else:
-        return _build_lr_scheduler(optimizer, cfg.TRAIN.LR, epochs, last_epoch)
+    # if cfg.TRAIN.WARMUP.IFNOT:
+    #     return _build_warm_up_scheduler(optimizer, cfg, epochs, last_epoch)
+    # else:
+    #     return _build_lr_scheduler(optimizer, cfg.TRAIN.LR, epochs, last_epoch)
+    return _build_lr_scheduler(optimizer, cfg.TRAIN, epochs, last_epoch)
 
 
 

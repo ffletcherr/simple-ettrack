@@ -176,9 +176,9 @@ class OceanDataset(Dataset):
 
         reg_label, reg_weight = self.reg_label(bbox)
 
-        # template, search = map(
-        #     lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search]
-        # )
+        template, search = map(
+            lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search]
+        )
 
         return (
             template,
