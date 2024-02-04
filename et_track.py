@@ -2,7 +2,13 @@ import torch
 
 import lib.models.models as lighttrack_model
 from exemplar_transformer import ExemplarTransformer
-from lib.models.model_parts import *
+from lib.models.model_parts import (
+    MC_BN,
+    Point_Neck_Mobile_simple_DP,
+    SeparableConv2d_BNReLU,
+    cls_pred_head,
+    reg_pred_head,
+)
 from lib.models.super_model_DP import Super_model_DP
 from lib.utils.utils import load_lighttrack_model
 
