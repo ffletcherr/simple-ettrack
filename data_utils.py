@@ -175,10 +175,9 @@ class OceanDataset(Dataset):
         out_label = self._dynamic_label([self.size, self.size], dag_param.shift)
 
         reg_label, reg_weight = self.reg_label(bbox)
-
-        template, search = map(
-            lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search]
-        )
+        # template, search = map(
+        #     lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search]
+        # )
 
         return (
             template,
@@ -486,3 +485,33 @@ class OceanDataset(Dataset):
             np.where(dist_to_center < rNeg, 0.5 * np.ones_like(y), np.zeros_like(y)),
         )
         return label
+
+
+if __name__ == "__main__":
+    import os
+    import matplotlib.pyplot as plt
+    from lib.core.config_ocean import config
+
+    dataset_path = Path(os.environ["dataset_path"])
+    dataset = OceanDataset(
+        cfg=config,
+        dataset_path=dataset_path / "tracks",
+    )
+
+    (
+        template,
+        search,
+        out_label,
+        reg_label,
+        reg_weight,
+        bbox,
+    ) = dataset[222]
+    reg_weight = cv2.cvtColor(reg_weight.astype(np.uint8), cv2.COLOR_GRAY2RGB)
+    reg_weight = cv2.resize(reg_weight, (search.shape[1], search.shape[0]))
+    x1, y1, x2, y2 = map(int, bbox)
+    search = cv2.rectangle(search * reg_weight, (x1, y1), (x2, y2), (200, 100, 150))
+    cv2.imshow("search", search)
+    cv2.imshow("out_label", out_label)
+    plt.imshow(reg_label[:, :, 0])
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
