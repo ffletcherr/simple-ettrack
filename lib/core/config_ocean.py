@@ -86,7 +86,12 @@ config.OCEAN.TUNE.MODEL = config.OCEAN.TRAIN.MODEL
 config.OCEAN.TUNE.DATA = 'VOT2019'
 config.OCEAN.TUNE.METHOD = 'TPE'  # 'GENE' or 'RAY'
 
-
+config.ETTRACK = edict()
+config.ETTRACK.TRAIN = edict()
+config.ETTRACK.TRAIN.TEMPLATE_SIZE = 128
+config.ETTRACK.TRAIN.SEARCH_SIZE = 256
+config.ETTRACK.TRAIN.STRIDE = 16
+config.ETTRACK.TRAIN.SIZE = 16
 
 def _update_dict(k, v, model_name):
     if k in ['TRAIN', 'TEST', 'TUNE']:

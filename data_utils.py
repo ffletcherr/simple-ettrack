@@ -60,16 +60,16 @@ def crop_like_SiamFC(
 
 
 class OceanDataset(Dataset):
-    def __init__(self, cfg, dataset_path: str = None):
+    def __init__(self, cfg, dataset_path: str = None, use_ettrack=False):
         super(OceanDataset, self).__init__()
         # pair information
-        self.template_size = cfg.OCEAN.TRAIN.TEMPLATE_SIZE
-        self.search_size = cfg.OCEAN.TRAIN.SEARCH_SIZE
-        self.search_margin = 64
-
-        self.size = cfg.OCEAN.TRAIN.SIZE
+        self.template_size = cfg.ETTRACK.TRAIN.TEMPLATE_SIZE if use_ettrack else cfg.OCEAN.TRAIN.TEMPLATE_SIZE
+        self.search_size = cfg.ETTRACK.TRAIN.SEARCH_SIZE  if use_ettrack else cfg.OCEAN.TRAIN.SEARCH_SIZE
+        
+        self.size = cfg.ETTRACK.TRAIN.SIZE  if use_ettrack else cfg.OCEAN.TRAIN.SIZE
+        self.stride = cfg.ETTRACK.TRAIN.STRIDE  if use_ettrack else cfg.OCEAN.TRAIN.STRIDE
         self.frame_range = 60
-        self.stride = cfg.OCEAN.TRAIN.STRIDE
+        self.search_margin = 64
 
         # aug information
         self.color = cfg.OCEAN.DATASET.COLOR
@@ -452,11 +452,11 @@ class OceanDataset(Dataset):
     # ------------------------------------
     # function for creating training label
     # ------------------------------------
-    def _dynamic_label(self, fixedLabelSize, c_shift, rPos=4, rNeg=0):
+    def _dynamic_label(self, fixedLabelSize, c_shift, rPos=2, rNeg=0):
         if isinstance(fixedLabelSize, int):
             fixedLabelSize = [fixedLabelSize, fixedLabelSize]
 
-        assert fixedLabelSize[0] % 2 == 1
+        # assert fixedLabelSize[0] % 2 == 1
 
         d_label = self._create_dynamic_logisticloss_label(
             fixedLabelSize, c_shift, rPos, rNeg
@@ -499,6 +499,7 @@ if __name__ == "__main__":
     dataset = OceanDataset(
         cfg=config,
         dataset_path=dataset_path / "tracks",
+        use_ettrack=True
     )
 
     (
@@ -510,32 +511,30 @@ if __name__ == "__main__":
         bbox,
     ) = dataset[222]
 
-    # reg_weight = cv2.cvtColor(reg_weight.astype(np.uint8), cv2.COLOR_GRAY2RGB)
-    # reg_weight = cv2.resize(reg_weight, (search.shape[1], search.shape[0]))
-    # out_label = cv2.cvtColor(out_label.astype(np.uint8) * 255, cv2.COLOR_GRAY2RGB)
-    # out_label = cv2.resize(out_label, (search.shape[1], search.shape[0]))
-    # x1, y1, x2, y2 = map(int, bbox)
-    # search = cv2.rectangle(
-    #     search * reg_weight * out_label, (x1, y1), (x2, y2), (200, 100, 150)
+    reg_weight = cv2.cvtColor(reg_weight.astype(np.uint8), cv2.COLOR_GRAY2RGB)
+    reg_weight = cv2.resize(reg_weight, (search.shape[1], search.shape[0]))
+    out_label = cv2.cvtColor(out_label.astype(np.uint8) * 255, cv2.COLOR_GRAY2RGB)
+    out_label = cv2.resize(out_label, (search.shape[1], search.shape[0]))
+    x1, y1, x2, y2 = map(int, bbox)
+    search = cv2.rectangle(search * reg_weight, (x1, y1), (x2, y2), (200, 100, 150))
+    cv2.imshow("search", search)
+    cv2.imshow("out_label", out_label)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    # params = parameters()
+    # model = params.net
+    # model.initialize(params.model_name, checkpoint_epoch=params.checkpoint_epoch)
+
+    # template, search = map(
+    #     lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search]
     # )
-    # cv2.imshow("search", search)
-    # cv2.imshow("out_label", out_label)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
-    params = parameters()
-    model = params.net
-    model.initialize(params.model_name, checkpoint_epoch=params.checkpoint_epoch)
-
-    template, search = map(
-        lambda x: np.transpose(x, (2, 0, 1)).astype(np.float32), [template, search]
-    )
-
-    template = torch.tensor(template).unsqueeze(0)
-    search = torch.tensor(search).unsqueeze(0)
-    out_label = torch.tensor(out_label).unsqueeze(0)
-    reg_label = torch.tensor(reg_label).unsqueeze(0)
-    reg_weight = torch.tensor(reg_weight).unsqueeze(0)
-    cls_loss_ori, cls_loss_align, reg_loss = model(
-        template, search, out_label, reg_target=reg_label, reg_weight=reg_weight
-    )
+    # template = torch.tensor(template).unsqueeze(0)
+    # search = torch.tensor(search).unsqueeze(0)
+    # out_label = torch.tensor(out_label).unsqueeze(0)
+    # reg_label = torch.tensor(reg_label).unsqueeze(0)
+    # reg_weight = torch.tensor(reg_weight).unsqueeze(0)
+    # out = model(
+    #     template, search, out_label, reg_target=reg_label, reg_weight=reg_weight
+    # )
