@@ -1,16 +1,13 @@
 import os
 from pathlib import Path
 
-import cv2
-import numpy as np
 import torch
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
 
 from data_utils import OceanDataset
-from et_track import ET_Tracker
 from lib.core.config_ocean import config
-from lib.core.function import ocean_train
+from lib.core.function import ettrack_train
 from lib.utils.utils import build_lr_scheduler, create_logger
 from parameters import parameters
 
@@ -61,8 +58,7 @@ if __name__ == "__main__":
     }
     for epoch in range(config.OCEAN.TRAIN.START_EPOCH, config.OCEAN.TRAIN.END_EPOCH):
         dataset = OceanDataset(
-            cfg=config,
-            dataset_path=dataset_path / "tracks",
+            cfg=config, dataset_path=dataset_path / "tracks", use_ettrack=True
         )
         data_loader = DataLoader(
             dataset,
@@ -74,7 +70,7 @@ if __name__ == "__main__":
         )
         lr_scheduler.step(epoch)
         curLR = lr_scheduler.get_cur_lr()
-        model, writer_dict = ocean_train(
+        model, writer_dict = ettrack_train(
             data_loader,
             model,
             optimizer,
