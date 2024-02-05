@@ -40,15 +40,6 @@ if __name__ == "__main__":
     logger, _, tb_log_dir = create_logger(config, "OCEAN", "train")
     dataset_path = Path(os.environ["dataset_path"])
 
-    model = ET_Tracker(
-        search_size=256,
-        template_size=128,
-        stride=16,
-        e_exemplars=4,
-        sm_normalization=True,
-        temperature=2,
-        dropout=False,
-    )
     params = parameters()
     model = params.net
     model.initialize(params.model_name, checkpoint_epoch=params.checkpoint_epoch)
