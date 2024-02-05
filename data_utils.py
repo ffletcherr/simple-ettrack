@@ -452,7 +452,7 @@ class OceanDataset(Dataset):
     # ------------------------------------
     # function for creating training label
     # ------------------------------------
-    def _dynamic_label(self, fixedLabelSize, c_shift, rPos=2, rNeg=0):
+    def _dynamic_label(self, fixedLabelSize, c_shift, rPos=4, rNeg=0):
         if isinstance(fixedLabelSize, int):
             fixedLabelSize = [fixedLabelSize, fixedLabelSize]
 
@@ -489,7 +489,9 @@ class OceanDataset(Dataset):
 
 if __name__ == "__main__":
     import os
+
     import matplotlib.pyplot as plt
+
     from lib.core.config_ocean import config
 
     dataset_path = Path(os.environ["dataset_path"])
@@ -508,10 +510,13 @@ if __name__ == "__main__":
     ) = dataset[222]
     reg_weight = cv2.cvtColor(reg_weight.astype(np.uint8), cv2.COLOR_GRAY2RGB)
     reg_weight = cv2.resize(reg_weight, (search.shape[1], search.shape[0]))
+    out_label = cv2.cvtColor(out_label.astype(np.uint8) * 255, cv2.COLOR_GRAY2RGB)
+    out_label = cv2.resize(out_label, (search.shape[1], search.shape[0]))
     x1, y1, x2, y2 = map(int, bbox)
-    search = cv2.rectangle(search * reg_weight, (x1, y1), (x2, y2), (200, 100, 150))
+    search = cv2.rectangle(
+        search * reg_weight * out_label, (x1, y1), (x2, y2), (200, 100, 150)
+    )
     cv2.imshow("search", search)
     cv2.imshow("out_label", out_label)
-    plt.imshow(reg_label[:, :, 0])
     cv2.waitKey(0)
     cv2.destroyAllWindows()
