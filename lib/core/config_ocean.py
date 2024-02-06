@@ -8,8 +8,8 @@ config = edict()
 config.GPUS = "0,1,2,3"
 config.WORKERS = 32
 config.PRINT_FREQ = 10
-config.OUTPUT_DIR = 'logs'
-config.CHECKPOINT_DIR = 'snapshot'
+config.OUTPUT_DIR = "logs"
+config.CHECKPOINT_DIR = "snapshot"
 
 config.OCEAN = edict()
 config.OCEAN.TRAIN = edict()
@@ -23,6 +23,14 @@ config.OCEAN.DATASET.DET = edict()
 config.OCEAN.DATASET.LASOT = edict()
 config.OCEAN.DATASET.YTB = edict()
 config.OCEAN.DATASET.VISDRONE = edict()
+
+# ettrack
+config.ETTRACK = edict()
+config.ETTRACK.TRAIN = edict()
+config.ETTRACK.TRAIN.TEMPLATE_SIZE = 128
+config.ETTRACK.TRAIN.SEARCH_SIZE = 256
+config.ETTRACK.TRAIN.STRIDE = 16
+config.ETTRACK.TRAIN.SIZE = 16
 
 # augmentation
 config.OCEAN.DATASET.SHIFT = 4
@@ -40,18 +48,18 @@ config.OCEAN.DATASET.SHIFTs = 64
 config.OCEAN.DATASET.SCALEs = 0
 
 # vid
-config.OCEAN.DATASET.VID.PATH = '$data_path/vid/crop511'
-config.OCEAN.DATASET.VID.ANNOTATION = '$data_path/vid/train.json'
+config.OCEAN.DATASET.VID.PATH = "$data_path/vid/crop511"
+config.OCEAN.DATASET.VID.ANNOTATION = "$data_path/vid/train.json"
 
 # got10k
-config.OCEAN.DATASET.GOT10K.PATH = '$data_path/got10k/crop511'
-config.OCEAN.DATASET.GOT10K.ANNOTATION = '$data_path/got10k/train.json'
+config.OCEAN.DATASET.GOT10K.PATH = "$data_path/got10k/crop511"
+config.OCEAN.DATASET.GOT10K.ANNOTATION = "$data_path/got10k/train.json"
 config.OCEAN.DATASET.GOT10K.RANGE = 100
 config.OCEAN.DATASET.GOT10K.USE = 200000
 
 # visdrone
-config.OCEAN.DATASET.VISDRONE.ANNOTATION = '$data_path/visdrone/train.json'
-config.OCEAN.DATASET.VISDRONE.PATH = '$data_path/visdrone/crop271'
+config.OCEAN.DATASET.VISDRONE.ANNOTATION = "$data_path/visdrone/train.json"
+config.OCEAN.DATASET.VISDRONE.PATH = "$data_path/visdrone/crop271"
 config.OCEAN.DATASET.VISDRONE.RANGE = 100
 config.OCEAN.DATASET.VISDRONE.USE = 100000
 
@@ -67,39 +75,33 @@ config.OCEAN.TRAIN.SEARCH_SIZE = 255
 config.OCEAN.TRAIN.STRIDE = 8
 config.OCEAN.TRAIN.SIZE = 25
 config.OCEAN.TRAIN.BATCH = 32
-config.OCEAN.TRAIN.PRETRAIN = 'pretrain.model'
-config.OCEAN.TRAIN.LR_POLICY = 'log'
+config.OCEAN.TRAIN.PRETRAIN = "pretrain.model"
+config.OCEAN.TRAIN.LR_POLICY = "log"
 config.OCEAN.TRAIN.LR = 0.001
 config.OCEAN.TRAIN.LR_END = 0.00001
 config.OCEAN.TRAIN.MOMENTUM = 0.9
 config.OCEAN.TRAIN.WEIGHT_DECAY = 0.0001
-config.OCEAN.TRAIN.WHICH_USE = ['GOT10K']  # VID or 'GOT10K'
+config.OCEAN.TRAIN.WHICH_USE = ["GOT10K"]  # VID or 'GOT10K'
 config.OCEAN.TRAIN.KWARGS = {}
 # test
 config.OCEAN.TEST.MODEL = config.OCEAN.TRAIN.MODEL
-config.OCEAN.TEST.DATA = 'VOT2019'
+config.OCEAN.TEST.DATA = "VOT2019"
 config.OCEAN.TEST.START_EPOCH = 30
 config.OCEAN.TEST.END_EPOCH = 50
 
 # tune
 config.OCEAN.TUNE.MODEL = config.OCEAN.TRAIN.MODEL
-config.OCEAN.TUNE.DATA = 'VOT2019'
-config.OCEAN.TUNE.METHOD = 'TPE'  # 'GENE' or 'RAY'
+config.OCEAN.TUNE.DATA = "VOT2019"
+config.OCEAN.TUNE.METHOD = "TPE"  # 'GENE' or 'RAY'
 
-config.ETTRACK = edict()
-config.ETTRACK.TRAIN = edict()
-config.ETTRACK.TRAIN.TEMPLATE_SIZE = 128
-config.ETTRACK.TRAIN.SEARCH_SIZE = 256
-config.ETTRACK.TRAIN.STRIDE = 16
-config.ETTRACK.TRAIN.SIZE = 16
 
 def _update_dict(k, v, model_name):
-    if k in ['TRAIN', 'TEST', 'TUNE']:
+    if k in ["TRAIN", "TEST", "TUNE"]:
         for vk, vv in v.items():
             config[model_name][k][vk] = vv
-    elif k == 'DATASET':
+    elif k == "DATASET":
         for vk, vv in v.items():
-            if vk not in ['VID', 'GOT10K', 'COCO', 'DET', 'YTB', 'LASOT']:
+            if vk not in ["VID", "GOT10K", "COCO", "DET", "YTB", "LASOT"]:
                 config[model_name][k][vk] = vv
             else:
                 for vvk, vvv in vv.items():
@@ -110,7 +112,7 @@ def _update_dict(k, v, model_name):
                         config[model_name][k][vk][vvk] = vvv
 
     else:
-        config[k] = v   # gpu et.
+        config[k] = v  # gpu et.
 
 
 def update_config(config_file):
@@ -121,12 +123,12 @@ def update_config(config_file):
     with open(config_file) as f:
         exp_config = edict(yaml.load(f))
         model_name = list(exp_config.keys())[0]
-        if model_name not in ['OCEAN', 'SIAMRPN']:
-            raise ValueError('please edit config.py to support new model')
+        if model_name not in ["OCEAN", "SIAMRPN"]:
+            raise ValueError("please edit config.py to support new model")
 
         model_config = exp_config[model_name]  # siamfc or siamrpn
         for k, v in model_config.items():
             if k in config or k in config[model_name]:
-                _update_dict(k, v, model_name)   # k=OCEAN or SIAMRPN
+                _update_dict(k, v, model_name)  # k=OCEAN or SIAMRPN
             else:
                 raise ValueError("{} not exist in config.py".format(k))
