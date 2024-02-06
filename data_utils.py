@@ -63,11 +63,21 @@ class OceanDataset(Dataset):
     def __init__(self, cfg, dataset_path: str = None, use_ettrack=False):
         super(OceanDataset, self).__init__()
         # pair information
-        self.template_size = cfg.ETTRACK.TRAIN.TEMPLATE_SIZE if use_ettrack else cfg.OCEAN.TRAIN.TEMPLATE_SIZE
-        self.search_size = cfg.ETTRACK.TRAIN.SEARCH_SIZE  if use_ettrack else cfg.OCEAN.TRAIN.SEARCH_SIZE
-        
-        self.size = cfg.ETTRACK.TRAIN.SIZE  if use_ettrack else cfg.OCEAN.TRAIN.SIZE
-        self.stride = cfg.ETTRACK.TRAIN.STRIDE  if use_ettrack else cfg.OCEAN.TRAIN.STRIDE
+        self.template_size = (
+            cfg.ETTRACK.TRAIN.TEMPLATE_SIZE
+            if use_ettrack
+            else cfg.OCEAN.TRAIN.TEMPLATE_SIZE
+        )
+        self.search_size = (
+            cfg.ETTRACK.TRAIN.SEARCH_SIZE
+            if use_ettrack
+            else cfg.OCEAN.TRAIN.SEARCH_SIZE
+        )
+
+        self.size = cfg.ETTRACK.TRAIN.SIZE if use_ettrack else cfg.OCEAN.TRAIN.SIZE
+        self.stride = (
+            cfg.ETTRACK.TRAIN.STRIDE if use_ettrack else cfg.OCEAN.TRAIN.STRIDE
+        )
         self.frame_range = 60
         self.search_margin = 64
 
@@ -497,9 +507,7 @@ if __name__ == "__main__":
 
     dataset_path = Path(os.environ["dataset_path"])
     dataset = OceanDataset(
-        cfg=config,
-        dataset_path=dataset_path / "tracks",
-        use_ettrack=True
+        cfg=config, dataset_path=dataset_path / "tracks", use_ettrack=True
     )
 
     (
@@ -510,7 +518,9 @@ if __name__ == "__main__":
         reg_weight,
         bbox,
     ) = dataset[222]
-
+    template, search = map(
+        lambda x: np.transpose(x, (1, 2, 0)).astype(np.uint8), [template, search]
+    )
     reg_weight = cv2.cvtColor(reg_weight.astype(np.uint8), cv2.COLOR_GRAY2RGB)
     reg_weight = cv2.resize(reg_weight, (search.shape[1], search.shape[0]))
     out_label = cv2.cvtColor(out_label.astype(np.uint8) * 255, cv2.COLOR_GRAY2RGB)
